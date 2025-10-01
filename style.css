@@ -43,19 +43,21 @@ body.no-ptr {
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 .logo-compact {
-  width: 28px;
-  height: 28px;
+  flex: 0 0 auto;
+  width: 36px;          /* boleh 28–40px sesuai selera */
+  height: 36px;
   border-radius: 8px;
   background: #121926;
+  border: 1px solid rgba(255,255,255,.08);
   display: grid;
   place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  flex: 0 0 auto;
+  overflow: hidden; 
 }
-.logo-compact svg {
-  width: 18px;
-  height: 18px;
-  opacity: 0.9;
+.logo-compact img{
+  width: 100%;
+  height: 100%;
+  object-fit: contain;  /* atau "cover" kalau mau full bleed */
+  display: block;       /* hilangkan extra space baseline */
 }
 .controls {
   display: flex;
@@ -63,11 +65,12 @@ body.no-ptr {
   gap: 6px;
   margin-left: 8px;
 }
-.grow {
+.grow{
   flex: 1 1 auto;
+  min-width: 0;         /* biar elemen di dalam boleh mengecil */
   display: flex;
-  gap: 6px;
   align-items: center;
+  gap: 6px;
 }
 .btn,
 .topbar select,
@@ -78,6 +81,11 @@ body.no-ptr {
   padding: 8px 10px;
   border-radius: 12px;
   font-size: 13px;
+}
+.topbar input{
+  flex: 1 1 220px;      /* biar prefer 220px tapi bisa melar/mengecil */
+  min-width: 120px;
+  width: auto;          /* override kalau sebelumnya fixed width */
 }
 .icon-btn {
   width: 36px;
@@ -547,6 +555,7 @@ footer a {
   background:#0c0c0c;
   border:1px solid #222;
 }
+
 
 
 
