@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+    <title>Jenovatech • Project Feed</title>
+    <meta name="theme-color" content="#0b0f14" />
+  </head>
+  <link rel="stylesheet" href="style.css" />
+  <body>
+    <!-- TOP BAR -->
+    <div class="topbar">
+      <div class="logo-compact" aria-label="Logo">
+        <svg viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="3" width="18" height="18" rx="5" fill="#1a2230" />
+          <path d="M7 16l5-8 5 8" stroke="#43d68a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </div>
+      <div class="grow">
+        <input id="searchInput" placeholder="Cari…" aria-label="Cari protokol" />
+        <button id="btnSearch" class="btn" title="Cari">🔎</button>
+      </div>
+      <div class="controls">
+        <button id="btnPrefs" class="icon-btn" title="Pengaturan">⚙️</button>
+        <button id="btnRefresh" class="icon-btn" title="Reload">↻</button>
+      </div>
+    </div>
+
+    <!-- STICKY SUBBAR -->
+    <div class="subbar">
+      <select id="selChain" title="Filter chain" aria-label="Filter chain"></select>
+      <select id="selHas" title="Filter data" aria-label="Filter data"></select>
+      <button id="btnSort" class="btn btn-sort" aria-haspopup="menu" aria-expanded="false" aria-controls="popSort"><span class="chip-icon">↕</span><span id="btnSortLabel">Sort</span></button>
+    </div>
+
+    <!-- SORT POPOVER -->
+    <div id="popSort" class="popover hidden" role="menu" aria-labelledby="btnSort"></div>
+
+    <!-- GLOBAL LOADING OVERLAY -->
+    <div id="overlay" class="overlay hidden" aria-hidden="true">
+      <div class="overlay-card">
+        <div class="spinner" role="progressbar" aria-label="Loading"></div>
+        <div id="overlayText">Memuat…</div>
+      </div>
+    </div>
+
+    <!-- FEED -->
+    <main id="feed" class="feed" aria-live="polite"></main>
+
+    <!-- DETAIL SHEET -->
+    <section id="sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+      <div class="handle"></div>
+      <h3 id="sheetTitle">Detail</h3>
+      <div id="sheetContent" class="muted">Memuat…</div>
+    </section>
+
+    <!-- PREFERENCES SHEET -->
+    <section id="prefsSheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="prefsTitle">
+      <div class="handle"></div>
+      <h3 id="prefsTitle">Preferensi</h3>
+      <div>
+        <div class="row" style="display: flex; gap: 10px; align-items: center; margin: 8px 0">
+          <label for="selLang" style="min-width: 120px" id="lblLang">Bahasa</label>
+          <select id="selLang">
+            <option value="id">Bahasa Indonesia</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <div class="row" style="display: flex; gap: 10px; align-items: center; margin: 8px 0">
+          <label for="selCcy" style="min-width: 120px" id="lblCcy">Mata uang</label>
+          <select id="selCcy">
+            <option value="USD">USD</option>
+            <option value="IDR">IDR (Rupiah)</option>
+          </select>
+        </div>
+        <div class="row" style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px">
+          <button id="btnPrefsCancel" class="btn">Batal</button>
+          <button id="btnPrefsApply" class="btn btn-primary">Terapkan</button>
+        </div>
+      </div>
+    </section>
+
+    <div id="toast" class="toast">Tersimpan</div>
+
+    <footer>
+      <div>
+        Data: <a href="https://defillama.com" target="_blank" rel="noopener">DeFiLlama</a>, <a href="https://www.coingecko.com" target="_blank" rel="noopener">CoinGecko</a>,
+        <a href="https://github.com" target="_blank" rel="noopener">GitHub</a>
+      </div>
+      <div>Draft MVP • personal use</div>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>
