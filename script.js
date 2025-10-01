@@ -1117,11 +1117,7 @@ popSort.addEventListener("click", (e) => {
   closeSortPopover();
 });
 
-// Controls
-$("#btnRefresh").addEventListener("click", () => {
-  closeSortPopover();
-  init(true);
-});
+
 
 $("#selChain").addEventListener("change", async () => {
   closeSortPopover();
@@ -1528,5 +1524,6 @@ async function init(force) {
 }
 
 init();
+
 
 
