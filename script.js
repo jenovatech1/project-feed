@@ -1312,6 +1312,150 @@ function maybeLoadMore() {
 }
 $("#feed").addEventListener("scroll", maybeLoadMore);
 
+// ===== Swipe-down to close for #sheet (with pull-to-refresh prevention)
+(function attachSheetGesture() {
+  const sheet = document.getElementById('sheet');
+  if (!sheet) return;
+
+  let startY = 0;
+  let lastY = 0;
+  let startTime = 0;
+  let dragging = false;
+  const THRESHOLD = 80;        // jarak minimal (px) untuk close
+  const VELOCITY_CLOSE = 0.6;  // kecepatan (px/ms) untuk close walau jarak kurang
+  const MAX_PULL = 320;        // batas tarikan visual
+
+  // util: set transform Y saat drag
+  function setTranslateY(y) {
+    sheet.style.transform = `translateY(${Math.max(0, y)}px)`; // sheet.open override
+  }
+  function resetTransform() {
+    sheet.style.transform = '';
+  }
+
+  // Saat sheet dibuka/tutup, toggle kelas body.no-ptr
+  const _openSheetClassAdd = sheet.classList.add.bind(sheet.classList);
+  const _openSheetClassRemove = sheet.classList.remove.bind(sheet.classList);
+
+  // Patch open/close untuk toggle no-ptr — panggil ini di fungsi openSheet/closeSheet kamu juga boleh
+  const origOpen = window.openSheet;
+  if (typeof origOpen === 'function') {
+    window.openSheet = async function(p) {
+      document.body.classList.add('no-ptr');
+      return origOpen(p);
+    }
+  }
+  const origClose = window.closeSheet;
+  if (typeof origClose === 'function') {
+    window.closeSheet = function() {
+      document.body.classList.remove('no-ptr');
+      resetTransform();
+      return origClose();
+    }
+  }
+
+  // Jaga-jaga: kalau kamu panggil sheet.classList.add('open') manual, tetap set no-ptr
+  const observer = new MutationObserver(() => {
+    if (sheet.classList.contains('open')) {
+      document.body.classList.add('no-ptr');
+    } else {
+      document.body.classList.remove('no-ptr');
+      resetTransform();
+    }
+  });
+  observer.observe(sheet, { attributes: true, attributeFilter: ['class'] });
+
+  // Hanya boleh tarik kalau posisi scroll sheet di atas (top)
+  function canDragDown(dy) {
+    // drag ke bawah + sheet scrollTop=0 -> boleh
+    return dy > 0 && (sheet.scrollTop <= 0);
+  }
+
+  sheet.addEventListener('touchstart', (e) => {
+    if (!sheet.classList.contains('open')) return;
+    if (!e.touches || !e.touches.length) return;
+    startY = lastY = e.touches[0].clientY;
+    startTime = performance.now();
+    dragging = false;
+  }, { passive: true });
+
+  sheet.addEventListener('touchmove', (e) => {
+    if (!sheet.classList.contains('open')) return;
+    if (!e.touches || !e.touches.length) return;
+
+    const y = e.touches[0].clientY;
+    const dy = y - startY;
+
+    // Mulai drag hanya kalau user geser ke bawah dan sheet sedang di top
+    if (!dragging) {
+      if (canDragDown(dy)) {
+        dragging = true;
+        sheet.classList.add('dragging');
+      } else {
+        return; // biarkan scroll normal
+      }
+    }
+
+    // Saat dragging aktif, cegah scrolling default (hindari pull-to-refresh)
+    e.preventDefault();
+
+    lastY = y;
+
+    // Terapkan translateY terbatas
+    const pull = Math.min(MAX_PULL, Math.max(0, dy));
+    setTranslateY(pull);
+  }, { passive: false });
+
+  sheet.addEventListener('touchend', (e) => {
+    if (!dragging) return;
+    const totalDy = Math.max(0, lastY - startY);
+    const dt = Math.max(1, performance.now() - startTime);
+    const velocity = totalDy / dt; // px per ms
+
+    // Kriteria close: jarak melewati threshold ATAU velocity cukup cepat
+    const shouldClose = totalDy > THRESHOLD || velocity > VELOCITY_CLOSE;
+
+    // Animasi snap
+    sheet.style.transition = 'transform 180ms ease';
+    requestAnimationFrame(() => {
+      if (shouldClose) {
+        setTranslateY(window.innerHeight * 0.75);
+        setTimeout(() => {
+          sheet.style.transition = '';
+          resetTransform();
+          // panggil closeSheet bawaan kamu
+          if (typeof window.closeSheet === 'function') window.closeSheet();
+          sheet.classList.remove('dragging');
+        }, 160);
+      } else {
+        // balik lagi
+        setTranslateY(0);
+        setTimeout(() => {
+          sheet.style.transition = '';
+          resetTransform();
+          sheet.classList.remove('dragging');
+        }, 160);
+      }
+    });
+
+    dragging = false;
+  }, { passive: true });
+
+  // Kalau user membatalkan touch (mis. incoming call UI), reset
+  sheet.addEventListener('touchcancel', () => {
+    if (!dragging) return;
+    sheet.style.transition = 'transform 160ms ease';
+    setTranslateY(0);
+    setTimeout(() => {
+      sheet.style.transition = '';
+      resetTransform();
+      sheet.classList.remove('dragging');
+      dragging = false;
+    }, 150);
+  }, { passive: true });
+})();
+
+
 // INIT
 async function init(force) {
   try {
@@ -1354,3 +1498,4 @@ async function init(force) {
 }
 
 init();
+
