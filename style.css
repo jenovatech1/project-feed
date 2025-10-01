@@ -7,7 +7,7 @@
   --danger: #ff6b6b;
   --chip: #1a2230;
   --topbar: 56px;
-  --subbar: 44px;
+  --subbar: 14px;
   --footer: 52px;
 }
 * {
@@ -536,4 +536,5 @@ footer a {
   background:#0c0c0c;
   border:1px solid #222;
 }
+
 
