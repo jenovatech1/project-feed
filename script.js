@@ -155,6 +155,36 @@ function showToast(msg) {
   tEl.classList.add("show");
   setTimeout(() => tEl.classList.remove("show"), 1400);
 }
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  });
+}
+// ====== A2HS (Add to Home Screen)
+let deferredPrompt = null;
+const btnInstall = document.getElementById("btnInstall");
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  if (btnInstall) btnInstall.hidden = false;
+});
+
+btnInstall?.addEventListener("click", async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if (outcome === "accepted") {
+    showToast?.("Installed");
+  }
+  deferredPrompt = null;
+  btnInstall.hidden = true;
+});
+
+window.addEventListener("appinstalled", () => {
+  btnInstall?.setAttribute("hidden", "");
+  showToast?.("App installed");
+});
 function lockUI(text) {
   $$("#btnSearch,#btnRefresh,#btnPrefs,#selChain,#selHas,#btnSort,#searchInput").forEach((el) => (el.disabled = true));
   $("#overlayText").textContent = text || t("loading");
@@ -1498,4 +1528,5 @@ async function init(force) {
 }
 
 init();
+
 
