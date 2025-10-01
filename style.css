@@ -548,13 +548,6 @@ footer a {
   display: none !important;
 }
 
-.logo-compact img{
-  width:40px; height:40px;
-  object-fit:contain;
-  border-radius:8px;
-  background:#0c0c0c;
-  border:1px solid #222;
-}
 
 
 
