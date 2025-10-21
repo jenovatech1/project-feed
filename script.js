@@ -894,11 +894,8 @@ async function openSheet(p) {
   sheet.classList.add("open");
   translateAndSet(document.getElementById("sheetDesc"), p?.description || "—");
 
-  // TVL chart
   // TVL chart (deferred + timeout + cache + shimmer)
   const canvas = document.getElementById("tvlChart");
-
-  // Pasang shimmer dulu agar sheet langsung kebuka mulus
   if (canvas) {
     const shimmer = document.createElement("div");
     shimmer.className = "shimmer";
@@ -906,30 +903,22 @@ async function openSheet(p) {
     shimmer.style.height = "120px";
     canvas.replaceWith(shimmer);
 
-    // Jalankan loader setelah frame render (biar UI tidak macet)
     requestAnimationFrame(async () => {
-      // 1) coba ambil dari cache/quick fetch (timeout 6s)
       let last30 = await loadTvl30D(p.slug);
-
-      // 2) kalau gagal/timeout, retry ringan
       if (!last30 || !last30.length) {
         last30 = await retryLoadTvl(p.slug, 2);
       }
 
-      // 3) render chart atau tampilkan tombol retry
-      const container = shimmer.parentElement;
       const newCanvas = document.createElement("canvas");
       newCanvas.id = "tvlChart";
       newCanvas.style.width = "100%";
       newCanvas.style.height = "120px";
 
       if (Array.isArray(last30) && last30.length) {
-        // Siapkan points [ , USD]
         const pts = last30.map((r) => [r.date, r.totalLiquidityUSD]);
         shimmer.replaceWith(newCanvas);
         drawLineChart(newCanvas, pts);
       } else {
-        // Fallback: tombol retry kecil
         const box = document.createElement("div");
         box.style.display = "grid";
         box.style.placeItems = "center";
@@ -981,10 +970,8 @@ async function openSheet(p) {
 
   // GitHub (deferred load)
   const ghTable = $("#ghTable");
-  // shimmer placeholder dulu
   ghTable.innerHTML = `<tr><td class="muted">Loading…</td></tr>`;
 
-  // jalankan async fetch setelah frame render
   requestAnimationFrame(async () => {
     let detail = null;
     try {
@@ -1118,7 +1105,155 @@ popSort.addEventListener("click", (e) => {
 });
 
 
+// ======= CHAIN SEARCHABLE DROPDOWN (ENHANCER) =======
+let chainBtn = null;
+let chainPop = null;
+let chainSearchInput = null;
+let chainListBox = null;
 
+function getAllChains() {
+  const chains = new Set();
+  for (const p of state.protocolsRaw) {
+    const arr = Array.isArray(p?.chains) ? p.chains : p?.chain ? [p.chain] : [];
+    arr.forEach((c) => c && chains.add(c));
+  }
+  return Array.from(chains).sort();
+}
+
+// Create UI once
+function ensureChainEnhancer() {
+  if (chainBtn && chainPop) return;
+
+  const sel = document.getElementById('selChain');
+  if (!sel) return;
+
+  // hide the native select but keep it for change events
+  sel.style.display = 'none';
+
+  // mount right after select
+  let mount = document.getElementById('chainEnhanceMount');
+  if (!mount) {
+    mount = document.createElement('span');
+    mount.id = 'chainEnhanceMount';
+    sel.insertAdjacentElement('afterend', mount);
+  }
+
+  // button
+  chainBtn = document.createElement('button');
+  chainBtn.id = 'btnChain';
+  chainBtn.type = 'button';
+  chainBtn.className = 'btn'; // reuse existing .btn style
+  chainBtn.style.maxWidth = '52%';
+  chainBtn.style.whiteSpace = 'nowrap';
+  chainBtn.style.overflow = 'hidden';
+  chainBtn.style.textOverflow = 'ellipsis';
+  chainBtn.setAttribute('aria-haspopup', 'menu');
+  chainBtn.setAttribute('aria-expanded', 'false');
+  chainBtn.innerHTML = `<span class="chip-icon">🧬</span> <span id="btnChainLabel">${state.chainFilter || t('all_chains')}</span>`;
+  mount.replaceWith(chainBtn);
+
+  // popover
+  chainPop = document.createElement('div');
+  chainPop.id = 'popChain';
+  chainPop.className = 'popover hidden';
+  chainPop.innerHTML = `
+    <div style="padding:6px;border-bottom:1px solid rgba(255,255,255,.06);position:sticky;top:0;background:#0f151c;z-index:1;">
+      <input id="chainSearch" type="search" placeholder="${t('search_placeholder')}" autocomplete="off"
+        style="width:100%;border:1px solid rgba(255,255,255,.08);background:#121926;color:#e7edf3;padding:8px 10px;border-radius:10px;font-size:13px;outline:none;" />
+    </div>
+    <div id="chainList" style="max-height:320px;overflow:auto;"></div>
+  `;
+  document.body.appendChild(chainPop);
+
+  chainSearchInput = chainPop.querySelector('#chainSearch');
+  chainListBox = chainPop.querySelector('#chainList');
+
+  chainBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleChainPopover();
+  });
+  window.addEventListener('resize', closeChainPopover);
+  document.addEventListener('click', (e) => {
+    if (!chainPop.classList.contains('hidden')) {
+      if (!chainPop.contains(e.target) && e.target !== chainBtn) closeChainPopover();
+    }
+  });
+  chainSearchInput.addEventListener('input', () => {
+    buildChainList(chainSearchInput.value || '');
+  });
+  chainSearchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeChainPopover();
+  });
+}
+
+// Build items (filtered)
+function buildChainList(filterText = '') {
+  const all = [''].concat(getAllChains()); // '' means All chains
+  const f = (filterText || '').toLowerCase().trim();
+  const items = f
+    ? all.filter((c) => (c ? c.toLowerCase().includes(f) : t('all_chains').toLowerCase().includes(f)))
+    : all;
+
+  chainListBox.innerHTML = items.map((c) => {
+    const isActive = (state.chainFilter || '') === c;
+    const label = c || t('all_chains');
+    return `
+      <button class="pop-item ${isActive ? 'active' : ''}" data-chain="${c}">
+        <span>${label}</span>
+        ${isActive ? '<span class="tick">✓</span>' : ''}
+      </button>
+    `;
+  }).join('');
+
+  chainListBox.querySelectorAll('.pop-item').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      const value = e.currentTarget.dataset.chain || '';
+      const sel = document.getElementById('selChain');
+      sel.value = value;
+      document.getElementById('btnChainLabel').textContent = value || t('all_chains');
+      closeChainPopover();
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  });
+}
+
+function positionChainPopover() {
+  const r = chainBtn.getBoundingClientRect();
+  chainPop.style.visibility = 'hidden';
+  chainPop.classList.remove('hidden');
+  const pw = chainPop.offsetWidth || 260;
+  const left = Math.min(Math.max(10, r.left), window.innerWidth - pw - 10);
+  chainPop.style.left = left + 'px';
+  chainPop.style.top = (r.bottom + 6) + 'px';
+  chainPop.style.visibility = 'visible';
+}
+
+function openChainPopover() {
+  ensureChainEnhancer();
+  buildChainList('');
+  positionChainPopover();
+  chainBtn.setAttribute('aria-expanded', 'true');
+  setTimeout(() => chainSearchInput?.focus(), 10);
+}
+
+function closeChainPopover() {
+  if (!chainPop || chainPop.classList.contains('hidden')) return;
+  chainPop.classList.add('hidden');
+  chainBtn?.setAttribute('aria-expanded', 'false');
+}
+
+function toggleChainPopover() {
+  if (!chainPop || chainPop.classList.contains('hidden')) openChainPopover();
+  else closeChainPopover();
+}
+
+function syncChainButtonLabel() {
+  const lbl = document.getElementById('btnChainLabel');
+  if (lbl) lbl.textContent = state.chainFilter || t('all_chains');
+}
+
+
+// ======= EVENT FILTERS =======
 $("#selChain").addEventListener("change", async () => {
   closeSortPopover();
   state.chainFilter = $("#selChain").value;
@@ -1132,6 +1267,8 @@ $("#selChain").addEventListener("change", async () => {
   sortProtocols();
   renderPage();
   unlockUI();
+  // keep enhanced button label in sync
+  syncChainButtonLabel();
 });
 
 $("#selHas").addEventListener("change", async () => {
@@ -1197,6 +1334,10 @@ function buildChainOptions() {
       .map((c) => `<option value="${c}">${c}</option>`)
       .join("");
   sel.value = state.chainFilter || "";
+
+  // NEW: ensure enhancer exists & label synced
+  ensureChainEnhancer();
+  syncChainButtonLabel();
 }
 function applyStaticTexts() {
   $("#searchInput").placeholder = t("search_placeholder");
@@ -1209,6 +1350,10 @@ function applyStaticTexts() {
   buildHasOptions();
   updateSortButtonLabel();
   buildSortPopoverOptions();
+
+  // keep chain button text up to date when language changes
+  ensureChainEnhancer();
+  syncChainButtonLabel();
 }
 function openPrefs() {
   closeSortPopover();
@@ -1324,11 +1469,10 @@ async function renderPage() {
   });
 
   state.page++;
-  // trigger prefetch if near bottom
   maybeLoadMore();
 }
 
-// INFINITE SCROLL via scroll listener (lebih stabil dari IO + snap)
+// INFINITE SCROLL via scroll listener
 function maybeLoadMore() {
   const feed = $("#feed");
   const canLoad = state.page * state.pageSize < state.protocols.length;
@@ -1347,23 +1491,17 @@ $("#feed").addEventListener("scroll", maybeLoadMore);
   let lastY = 0;
   let startTime = 0;
   let dragging = false;
-  const THRESHOLD = 80;        // jarak minimal (px) untuk close
-  const VELOCITY_CLOSE = 0.6;  // kecepatan (px/ms) untuk close walau jarak kurang
-  const MAX_PULL = 320;        // batas tarikan visual
+  const THRESHOLD = 80;
+  const VELOCITY_CLOSE = 0.6;
+  const MAX_PULL = 320;
 
-  // util: set transform Y saat drag
   function setTranslateY(y) {
-    sheet.style.transform = `translateY(${Math.max(0, y)}px)`; // sheet.open override
+    sheet.style.transform = `translateY(${Math.max(0, y)}px)`;
   }
   function resetTransform() {
     sheet.style.transform = '';
   }
 
-  // Saat sheet dibuka/tutup, toggle kelas body.no-ptr
-  const _openSheetClassAdd = sheet.classList.add.bind(sheet.classList);
-  const _openSheetClassRemove = sheet.classList.remove.bind(sheet.classList);
-
-  // Patch open/close untuk toggle no-ptr — panggil ini di fungsi openSheet/closeSheet kamu juga boleh
   const origOpen = window.openSheet;
   if (typeof origOpen === 'function') {
     window.openSheet = async function(p) {
@@ -1380,7 +1518,6 @@ $("#feed").addEventListener("scroll", maybeLoadMore);
     }
   }
 
-  // Jaga-jaga: kalau kamu panggil sheet.classList.add('open') manual, tetap set no-ptr
   const observer = new MutationObserver(() => {
     if (sheet.classList.contains('open')) {
       document.body.classList.add('no-ptr');
@@ -1391,9 +1528,7 @@ $("#feed").addEventListener("scroll", maybeLoadMore);
   });
   observer.observe(sheet, { attributes: true, attributeFilter: ['class'] });
 
-  // Hanya boleh tarik kalau posisi scroll sheet di atas (top)
   function canDragDown(dy) {
-    // drag ke bawah + sheet scrollTop=0 -> boleh
     return dy > 0 && (sheet.scrollTop <= 0);
   }
 
@@ -1412,36 +1547,30 @@ $("#feed").addEventListener("scroll", maybeLoadMore);
     const y = e.touches[0].clientY;
     const dy = y - startY;
 
-    // Mulai drag hanya kalau user geser ke bawah dan sheet sedang di top
     if (!dragging) {
       if (canDragDown(dy)) {
         dragging = true;
         sheet.classList.add('dragging');
       } else {
-        return; // biarkan scroll normal
+        return;
       }
     }
 
-    // Saat dragging aktif, cegah scrolling default (hindari pull-to-refresh)
     e.preventDefault();
-
     lastY = y;
 
-    // Terapkan translateY terbatas
     const pull = Math.min(MAX_PULL, Math.max(0, dy));
     setTranslateY(pull);
   }, { passive: false });
 
-  sheet.addEventListener('touchend', (e) => {
+  sheet.addEventListener('touchend', () => {
     if (!dragging) return;
     const totalDy = Math.max(0, lastY - startY);
     const dt = Math.max(1, performance.now() - startTime);
-    const velocity = totalDy / dt; // px per ms
+    const velocity = totalDy / dt;
 
-    // Kriteria close: jarak melewati threshold ATAU velocity cukup cepat
     const shouldClose = totalDy > THRESHOLD || velocity > VELOCITY_CLOSE;
 
-    // Animasi snap
     sheet.style.transition = 'transform 180ms ease';
     requestAnimationFrame(() => {
       if (shouldClose) {
@@ -1449,12 +1578,10 @@ $("#feed").addEventListener("scroll", maybeLoadMore);
         setTimeout(() => {
           sheet.style.transition = '';
           resetTransform();
-          // panggil closeSheet bawaan kamu
           if (typeof window.closeSheet === 'function') window.closeSheet();
           sheet.classList.remove('dragging');
         }, 160);
       } else {
-        // balik lagi
         setTranslateY(0);
         setTimeout(() => {
           sheet.style.transition = '';
@@ -1467,7 +1594,6 @@ $("#feed").addEventListener("scroll", maybeLoadMore);
     dragging = false;
   }, { passive: true });
 
-  // Kalau user membatalkan touch (mis. incoming call UI), reset
   sheet.addEventListener('touchcancel', () => {
     if (!dragging) return;
     sheet.style.transition = 'transform 160ms ease';
@@ -1524,6 +1650,3 @@ async function init(force) {
 }
 
 init();
-
-
-
