@@ -548,6 +548,47 @@ footer a {
   display: none !important;
 }
 
+/* === Chain popover with search === */
+.pop-search {
+  padding: 6px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  position: sticky; top: 0; background:#0f151c; z-index:1;
+}
+.pop-search input {
+  width: 100%;
+  border: 1px solid rgba(255,255,255,.08);
+  background: #121926;
+  color: #e7edf3;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  outline: none;
+}
+.pop-list {
+  max-height: 320px;
+  overflow: auto;
+}
+.pop-list .pop-item {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.pop-item small { color: var(--muted); }
+.btn-chain {
+  border: 1px solid rgba(255,255,255,.08);
+  background: #121926;
+  color: #e7edf3;
+  padding: 8px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  display: inline-flex; align-items: center; gap: 6px;
+  max-width: 52%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.btn-chain .chip-icon { opacity: .8; }
+@media (max-width: 540px) {
+  .btn-chain { flex: 1 1 32%; max-width: 100%; min-width: 120px; }
+}
+
+
+
 
 
 
