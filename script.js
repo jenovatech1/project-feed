@@ -1172,7 +1172,18 @@ function ensureChainEnhancer() {
     e.stopPropagation();
     toggleChainPopover();
   });
-  window.addEventListener('resize', closeChainPopover);
+  const onViewportChange = () => {
+  if (!chainPop || chainPop.classList.contains('hidden')) return;
+  positionChainPopover();
+};
+
+  window.addEventListener('resize', onViewportChange);
+
+  if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', onViewportChange);
+  window.visualViewport.addEventListener('scroll', onViewportChange);
+}
+  
   document.addEventListener('click', (e) => {
     if (!chainPop.classList.contains('hidden')) {
       if (!chainPop.contains(e.target) && e.target !== chainBtn) closeChainPopover();
@@ -1218,15 +1229,33 @@ function buildChainList(filterText = '') {
 }
 
 function positionChainPopover() {
+  if (!chainBtn || !chainPop) return;
   const r = chainBtn.getBoundingClientRect();
+
   chainPop.style.visibility = 'hidden';
   chainPop.classList.remove('hidden');
-  const pw = chainPop.offsetWidth || 260;
-  const left = Math.min(Math.max(10, r.left), window.innerWidth - pw - 10);
+
+  const popWidth = chainPop.offsetWidth || 280;
+  let left = Math.min(Math.max(10, r.left), window.innerWidth - popWidth - 10);
+  let top = r.bottom + 6;
+  if (window.visualViewport) {
+    const vv = window.visualViewport;
+    const safeBottom = vv.height - 12;
+    const approxPopHeight = Math.min(chainPop.scrollHeight || 360, 360); // guard
+    if (top + approxPopHeight > safeBottom) {
+      top = Math.max(10, safeBottom - approxPopHeight);
+    }
+    left = Math.min(Math.max(10, r.left), vv.width - popWidth - 10);
+    chainPop.style.position = 'fixed';
+  } else {
+    chainPop.style.position = 'absolute';
+  }
+
   chainPop.style.left = left + 'px';
-  chainPop.style.top = (r.bottom + 6) + 'px';
+  chainPop.style.top = top + 'px';
   chainPop.style.visibility = 'visible';
 }
+
 
 function openChainPopover() {
   ensureChainEnhancer();
@@ -1650,3 +1679,4 @@ async function init(force) {
 }
 
 init();
+
