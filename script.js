@@ -1661,7 +1661,7 @@ D           <div class="metrics" id="m-${p.slug}">
       const chg = priceChg.change24h;
       vEl.textContent = pctStr(chg);
       vEl.classList.toggle("pos", chg > 0);
-line-height: 1.5;      vEl.classList.toggle("neg", chg < 0);
+     vEl.classList.toggle("neg", chg < 0);
     }
   });
 
@@ -1847,3 +1847,4 @@ async function init(force) {
 }
 
 init();
+
