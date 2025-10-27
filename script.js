@@ -1034,7 +1034,7 @@ async function openSheet(p) {
             <div class="kv"><div class="k">${t("price_chg_24h")}</div><div class="v ${chgVal > 0 ? "pos" : chgVal < 0 ? "neg" : ""}">${tokenExists ? (priceChg ? pctStr(chgVal) : "—") : "—"}</div></div>
             <div class="kv"><div class="k">${t("fees_24h")}</div><div class="v">${fee24 != null ? formatMoney(fee24) : "—"}</div></div>
             <div class="kv"><div class="k">${t("revenue_24h")}</div><div class="v">${rev24 != null ? formatMoney(rev24) : "—"}</div></div>
-D         </div>
+         </div>
 
           <div style="margin-top:6px;">
             <div class="label muted" style="margin-bottom:6px;">TVL 30D (${state.pref.ccy})</div>
@@ -1763,7 +1763,7 @@ $("#feed").addEventListener("scroll", maybeLoadMore);
   sheet.addEventListener('touchend', () => {
     if (!dragging) return;
     const totalDy = Math.max(0, lastY - startY);
-   const dt = Math.max(1, performance.now() - startTime);
+    const dt = Math.max(1, performance.now() - startTime);
     const velocity = totalDy / dt;
 
     const shouldClose = totalDy > THRESHOLD || velocity > VELOCITY_CLOSE;
@@ -1847,6 +1847,7 @@ async function init(force) {
 }
 
 init();
+
 
 
 
