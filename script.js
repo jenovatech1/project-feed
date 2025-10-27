@@ -1763,7 +1763,7 @@ $("#feed").addEventListener("scroll", maybeLoadMore);
   sheet.addEventListener('touchend', () => {
     if (!dragging) return;
     const totalDy = Math.max(0, lastY - startY);
-S   const dt = Math.max(1, performance.now() - startTime);
+   const dt = Math.max(1, performance.now() - startTime);
     const velocity = totalDy / dt;
 
     const shouldClose = totalDy > THRESHOLD || velocity > VELOCITY_CLOSE;
@@ -1784,7 +1784,7 @@ S   const dt = Math.max(1, performance.now() - startTime);
           sheet.style.transition = '';
           resetTransform();
           sheet.classList.remove('dragging');
-A       }, 160);
+       }, 160);
       }
     });
 
@@ -1847,4 +1847,5 @@ async function init(force) {
 }
 
 init();
+
 
