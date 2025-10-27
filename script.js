@@ -1620,13 +1620,13 @@ async function renderPage() {
               <span class="badge">${chainBadge || "—"}</span>
             </div>
             <div class="desc" id="${descId}">—</div>
-D           <div class="metrics" id="m-${p.slug}">
+          <div class="metrics" id="m-${p.slug}">
               <div class="metric"><div class="label">${t("tvl")}</div><div class="value">${formatMoney(p?.tvl)}</div></div>
               <div class="metric"><div class="label">${t("tvl_7d")}</div><div class="value ${p?.change_7d > 0 ? "pos" : p?.change_7d < 0 ? "neg" : ""}">${pctStr(p?.change_7d)}</div></div>
               <div class="metric"><div class="label">${t("price")}</div><div class="value">${tokenExists ? (priceNow ? formatMoney(priceNow.price) : "—") : t("no_token")}</div></div>
               <div class="metric"><div class="label">${t("price_chg_24h")}</div><div class="value ${chgVal > 0 ? "pos" : chgVal < 0 ? "neg" : ""}">${tokenExists ? (priceChg ? pctStr(chgVal) : "—") : "—"}</div></div>
               <div class="metric"><div class="label">${t("fees_24h")}</div><div class="value">${fees24h != null ? formatMoney(fees24h) : "—"}</div></div>
-Â             <div class="metric"><div class="label">${t("revenue_24h")}</div><div class="value">${rev24h != null ? formatMoney(rev24h) : "—"}</div></div>
+            <div class="metric"><div class="label">${t("revenue_24h")}</div><div class="value">${rev24h != null ? formatMoney(rev24h) : "—"}</div></div>
             </div>
             <div class="badges">${narratives.map((n) => `<span class="badge">${n}</span>`).join("")}</div>
             <div class="actions">
@@ -1847,5 +1847,6 @@ async function init(force) {
 }
 
 init();
+
 
 
