@@ -763,171 +763,170 @@ function drawLineChart(canvas, points) {
 
 // ---- Utils: tanggal lokal singkat
 function fmtDateShort(tsSec) {
-  // API DeFiLlama biasanya memberi detik (unix seconds)
-  const ms = String(tsSec).length <= 10 ? tsSec * 1000 : tsSec;
-  const d = new Date(ms);
-  const locale = state.pref.lang === "id" ? "id-ID" : "en-US";
-  // contoh: 26 Okt 2025 / Oct 26, 2025
-  return d.toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" });
+  // API DeFiLlama biasanya memberi detik (unix seconds)
+  const ms = String(tsSec).length <= 10 ? tsSec * 1000 : tsSec;
+  const d = new Date(ms);
+  const locale = state.pref.lang === "id" ? "id-ID" : "en-US";
+  // contoh: 26 Okt 2025 / Oct 26, 2025
+  return d.toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" });
 }
 // ---- Chart interaktif: tap/drag untuk lihat nilai per hari
 function drawInteractiveLineChart(canvas, points) {
-  if (!canvas || !Array.isArray(points) || points.length < 2) return;
+  if (!canvas || !Array.isArray(points) || points.length < 2) return;
 
-  const ctx = canvas.getContext("2d");
-  const dpr = window.devicePixelRatio || 1;
-  const cssW = canvas.clientWidth || canvas.parentElement.clientWidth || 300;
-  const cssH = 120;
+  const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth || canvas.parentElement.clientWidth || 300;
+  const cssH = 120;
 
-  canvas.width = cssW * dpr;
-  canvas.height = cssH * dpr;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  canvas.width = cssW * dpr;
+  canvas.height = cssH * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  const valuesUSD = points.map((p) => p?.[1]).filter((v) => isFinite(v));
-  const vals = state.pref.ccy === "IDR" && state.fx.rate ? valuesUSD.map((v) => v * state.fx.rate) : valuesUSD;
-  if (!vals.length) return;
+  const valuesUSD = points.map((p) => p?.[1]).filter((v) => isFinite(v));
+  const vals = state.pref.ccy === "IDR" && state.fx.rate ? valuesUSD.map((v) => v * state.fx.rate) : valuesUSD;
+  if (!vals.length) return;
 
-  const pad = 8;
-  const W = cssW - pad * 2;
-  const H = cssH - pad * 2;
-  const min = Math.min(...vals);
-  const max = Math.max(...vals);
-  const n = points.length;
+  const pad = 8;
+  const W = cssW - pad * 2;
+  const H = cssH - pad * 2;
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const n = points.length;
 
-  const xAt = (i) => pad + (i / (n - 1)) * W;
-  const yAt = (v) => pad + (1 - (v - min) / (max - min || 1)) * H;
+  const xAt = (i) => pad + (i / (n - 1)) * W;
+  const yAt = (v) => pad + (1 - (v - min) / (max - min || 1)) * H;
 
-  // render base chart (line + fill)
-  function renderBase() {
-    ctx.clearRect(0, 0, cssW, cssH);
+  // render base chart (line + fill)
+  function renderBase() {
+    ctx.clearRect(0, 0, cssW, cssH);
 
-    ctx.beginPath();
-    ctx.moveTo(xAt(0), yAt(vals[0]));
-    for (let i = 1; i < n; i++) ctx.lineTo(xAt(i), yAt(vals[i]));
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#1fdc86";
-    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(xAt(0), yAt(vals[0]));
+    for (let i = 1; i < n; i++) ctx.lineTo(xAt(i), yAt(vals[i]));
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#1fdc86";
+    ctx.stroke();
 
-    const g = ctx.createLinearGradient(0, pad, 0, pad + H);
-    g.addColorStop(0, "rgba(31,220,134,.32)");
-    g.addColorStop(1, "rgba(31,220,134,0)");
-    ctx.lineTo(pad + W, pad + H);
-    ctx.lineTo(pad, pad + H);
-    ctx.closePath();
-    ctx.fillStyle = g;
-    ctx.fill();
-  }
+    const g = ctx.createLinearGradient(0, pad, 0, pad + H);
+    g.addColorStop(0, "rgba(31,220,134,.32)");
+    g.addColorStop(1, "rgba(31,220,134,0)");
+    ctx.lineTo(pad + W, pad + H);
+    ctx.lineTo(pad, pad + H);
+    ctx.closePath();
+    ctx.fillStyle = g;
+    ctx.fill();
+  }
 
-  // tooltip
-  function drawTooltip(i) {
-    // crosshair
-    const cx = xAt(i);
-    const cy = yAt(vals[i]);
+  // tooltip
+  function drawTooltip(i) {
+    // crosshair
+    const cx = xAt(i);
+    const cy = yAt(vals[i]);
 
-    ctx.save();
-    // garis vertikal
-    ctx.beginPath();
-    ctx.moveTo(cx + 0.5, pad);
-    ctx.lineTo(cx + 0.5, pad + H);
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = "rgba(255,255,255,.35)";
-    ctx.stroke();
+    ctx.save();
+    // garis vertikal
+    ctx.beginPath();
+    ctx.moveTo(cx + 0.5, pad);
+    ctx.lineTo(cx + 0.5, pad + H);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,.35)";
+    ctx.stroke();
 
-    // titik
-    ctx.beginPath();
-    ctx.arc(cx, cy, 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = "#1fdc86";
-    ctx.fill();
-    ctx.strokeStyle = "#0b0f14";
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    // titik
+    ctx.beginPath();
+    ctx.arc(cx, cy, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = "#1fdc86";
+    ctx.fill();
+    ctx.strokeStyle = "#0b0f14";
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
-    // kotak info
-    const dateTs = points[i][0];
-    const usdVal = points[i][1];
-    const labelDate = fmtDateShort(dateTs);
-    const labelVal = formatMoney(usdVal);
+    // kotak info
+    const dateTs = points[i][0];
+    const usdVal = points[i][1];
+    const labelDate = fmtDateShort(dateTs);
+    const labelVal = formatMoney(usdVal);
 
-    const text1 = labelDate;
-    const text2 = labelVal;
-    ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Inter";
-    const w = Math.max(ctx.measureText(text1).width, ctx.measureText(text2).width) + 16;
-    const h = 36;
+    const text1 = labelDate;
+    const text2 = labelVal;
+    ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Inter";
+    const w = Math.max(ctx.measureText(text1).width, ctx.measureText(text2).width) + 16;
+    const h = 36;
 
-    // posisi prefer kanan; kalau mepet, geser kiri
-    let boxX = cx + 8;
-    if (boxX + w > cssW - 6) boxX = cx - w - 8;
-    let boxY = Math.max(6, Math.min(cy - h - 6, cssH - h - 6));
+    // posisi prefer kanan; kalau mepet, geser kiri
+    let boxX = cx + 8;
+    if (boxX + w > cssW - 6) boxX = cx - w - 8;
+    let boxY = Math.max(6, Math.min(cy - h - 6, cssH - h - 6));
 
-    // kotak
-    ctx.fillStyle = "rgba(6,10,16,.9)";
-    ctx.strokeStyle = "rgba(255,255,255,.12)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(boxX, boxY, w, h, 8);
-    ctx.fill();
-    ctx.stroke();
+    // kotak
+    ctx.fillStyle = "rgba(6,10,16,.9)";
+    ctx.strokeStyle = "rgba(255,255,255,.12)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, w, h, 8);
+    ctx.fill();
+    ctx.stroke();
 
-    // teks
-    ctx.fillStyle = "#e7edf3";
-    ctx.fillText(text1, boxX + 8, boxY + 14);
-    ctx.font = "bold 12px system-ui, -apple-system, Segoe UI, Roboto, Inter";
-    ctx.fillText(text2, boxX + 8, boxY + 28);
+    // teks
+    ctx.fillStyle = "#e7edf3";
+    ctx.fillText(text1, boxX + 8, boxY + 14);
+    ctx.font = "bold 12px system-ui, -apple-system, Segoe UI, Roboto, Inter";
+    ctx.fillText(text2, boxX + 8, boxY + 28);
 
-    ctx.restore();
-  }
+    ctx.restore();
+  }
 
-  // helper: hitung index terdekat dari posisi x
-  function indexFromClientX(clientX) {
-    const rect = canvas.getBoundingClientRect();
-    const x = (clientX - rect.left); // css pixels (sudah cocok dgn ctx scale)
-    const t = (x - pad) / (W || 1);
-    const i = Math.round(t * (n - 1));
-    return Math.max(0, Math.min(n - 1, i));
-  }
+  // helper: hitung index terdekat dari posisi x
+  function indexFromClientX(clientX) {
+    const rect = canvas.getBoundingClientRect();
+    const x = (clientX - rect.left); // css pixels (sudah cocok dgn ctx scale)
+    const t = (x - pad) / (W || 1);
+    const i = Math.round(t * (n - 1));
+    return Math.max(0, Math.min(n - 1, i));
+  }
 
-  renderBase();
+  renderBase();
 
-  // interaksi pointer (mouse + touch)
-  let lastI = null;
-  let isPointerDown = false;
+  // interaksi pointer (mouse + touch)
+  let lastI = null;
+  let isPointerDown = false;
 
-  function updateAt(clientX) {
-    const i = indexFromClientX(clientX);
-    if (i === lastI && !isPointerDown) return;
-    lastI = i;
-    renderBase();
-    drawTooltip(i);
-  }
+  function updateAt(clientX) {
+    const i = indexFromClientX(clientX);
+    if (i === lastI && !isPointerDown) return;
+    lastI = i;
+    renderBase();
+    drawTooltip(i);
+  }
 
-  function onMove(e) {
-    if (e.touches && e.touches.length) {
-      updateAt(e.touches[0].clientX);
-    } else {
-      updateAt(e.clientX);
-    }
-  }
+  function onMove(e) {
+    if (e.touches && e.touches.length) {
+      updateAt(e.touches[0].clientX);
+    } else {
+      updateAt(e.clientX);
+    }
+  }
 
-  function onDown(e) {
-    isPointerDown = true;
-    onMove(e);
-  }
-  function onUp() {
-    isPointerDown = false;
-  }
+  function onDown(e) {
+    isPointerDown = true;
+    onMove(e);
+  }
+  function onUp() {
+    isPointerDown = false;
+  }
 
-  // listeners
-  canvas.addEventListener("mousemove", onMove, { passive: true });
-  canvas.addEventListener("mouseleave", () => { if (!isPointerDown) { renderBase(); lastI = null; } }, { passive: true });
-  canvas.addEventListener("mousedown", onDown);
-  window.addEventListener("mouseup", onUp);
+  // listeners
+  canvas.addEventListener("mousemove", onMove, { passive: true });
+  canvas.addEventListener("mouseleave", () => { if (!isPointerDown) { renderBase(); lastI = null; } }, { passive: true });
+  canvas.addEventListener("mousedown", onDown);
+  window.addEventListener("mouseup", onUp);
 
-  canvas.addEventListener("touchstart", onDown, { passive: true });
-  canvas.addEventListener("touchmove", onMove, { passive: true });
-  canvas.addEventListener("touchend", () => { isPointerDown = false; /* tetap pertahankan tooltip terakhir */ }, { passive: true });
-  canvas.addEventListener("touchcancel", () => { isPointerDown = false; renderBase(); lastI = null; }, { passive: true });
+  canvas.addEventListener("touchstart", onDown, { passive: true });
+  canvas.addEventListener("touchmove", onMove, { passive: true });
+  canvas.addEventListener("touchend", () => { isPointerDown = false; /* tetap pertahankan tooltip terakhir */ }, { passive: true });
+  canvas.addEventListener("touchcancel", () => { isPointerDown = false; renderBase(); lastI = null; }, { passive: true });
 }
-
 
 function getGeckoIdFromTokenKeys(slug) {
   const keys = state.tokenKeys.get(slug) || [];
@@ -1034,7 +1033,7 @@ async function openSheet(p) {
             <div class="kv"><div class="k">${t("price_chg_24h")}</div><div class="v ${chgVal > 0 ? "pos" : chgVal < 0 ? "neg" : ""}">${tokenExists ? (priceChg ? pctStr(chgVal) : "—") : "—"}</div></div>
             <div class="kv"><div class="k">${t("fees_24h")}</div><div class="v">${fee24 != null ? formatMoney(fee24) : "—"}</div></div>
             <div class="kv"><div class="k">${t("revenue_24h")}</div><div class="v">${rev24 != null ? formatMoney(rev24) : "—"}</div></div>
-         </div>
+          </div>
 
           <div style="margin-top:6px;">
             <div class="label muted" style="margin-bottom:6px;">TVL 30D (${state.pref.ccy})</div>
@@ -1085,7 +1084,7 @@ async function openSheet(p) {
       if (Array.isArray(last30) && last30.length) {
         const pts = last30.map((r) => [r.date, r.totalLiquidityUSD]);
         shimmer.replaceWith(newCanvas);
-        drawInteractiveLineChart(newCanvas, pts); // <--- GANTI DI SINI
+        drawInteractiveLineChart(newCanvas, pts); // <--- DIGANTI
       } else {
         const box = document.createElement("div");
         box.style.display = "grid";
@@ -1104,7 +1103,7 @@ async function openSheet(p) {
           if (again && again.length) {
             const pts2 = again.map((r) => [r.date, r.totalLiquidityUSD]);
             box.replaceWith(newCanvas);
-            drawInteractiveLineChart(newCanvas, pts2); // <--- GANTI DI SINI JUGA
+            drawInteractiveLineChart(newCanvas, pts2); // <--- DIGANTI
           } else {
             btn.disabled = false;
             btn.textContent = "Retry";
@@ -1132,7 +1131,7 @@ async function openSheet(p) {
              <tr><th>${t("fdv")}</th><td style="text-align:right">${fdvUSD != null ? formatMoney(fdvUSD) : "—"}</td></tr>
              <tr><th>${t("ath")}</th><td style="text-align:right">${ath != null ? formatMoney(ath) : "—"}</td></tr>
              <tr><th>${t("atl")}</th><td style="text-align:right">${atl != null ? formatMoney(atl) : "—"}</td></tr>`;
-  } else {
+} else {
     mcapTable.innerHTML = `<tr><td class="muted">—</td></tr>`;
   }
 
@@ -1162,7 +1161,7 @@ async function openSheet(p) {
         if (gh) {
           ghTable.innerHTML = `
           <tr><th>Repo</th><td><a class="link" href="${gh.html_url}" target="_blank" rel="noopener">${ownerRepo}</a></td></tr>
-          <tr><th>${t("stars")}</th><td>${gh.stargazers_count ?? "—"}</td></tr>
+s         <tr><th>${t("stars")}</th><td>${gh.stargazers_count ?? "—"}</td></tr>
           <tr><th>${t("forks")}</th><td>${gh.forks_count ?? "—"}</td></tr>
           <tr><th>${t("last_push")}</th><td>${fmtDate(gh.pushed_at)}</td></tr>`;
         } else {
@@ -1620,13 +1619,13 @@ async function renderPage() {
               <span class="badge">${chainBadge || "—"}</span>
             </div>
             <div class="desc" id="${descId}">—</div>
-          <div class="metrics" id="m-${p.slug}">
+            <div class="metrics" id="m-${p.slug}">
               <div class="metric"><div class="label">${t("tvl")}</div><div class="value">${formatMoney(p?.tvl)}</div></div>
               <div class="metric"><div class="label">${t("tvl_7d")}</div><div class="value ${p?.change_7d > 0 ? "pos" : p?.change_7d < 0 ? "neg" : ""}">${pctStr(p?.change_7d)}</div></div>
               <div class="metric"><div class="label">${t("price")}</div><div class="value">${tokenExists ? (priceNow ? formatMoney(priceNow.price) : "—") : t("no_token")}</div></div>
               <div class="metric"><div class="label">${t("price_chg_24h")}</div><div class="value ${chgVal > 0 ? "pos" : chgVal < 0 ? "neg" : ""}">${tokenExists ? (priceChg ? pctStr(chgVal) : "—") : "—"}</div></div>
               <div class="metric"><div class="label">${t("fees_24h")}</div><div class="value">${fees24h != null ? formatMoney(fees24h) : "—"}</div></div>
-            <div class="metric"><div class="label">${t("revenue_24h")}</div><div class="value">${rev24h != null ? formatMoney(rev24h) : "—"}</div></div>
+              <div class="metric"><div class="label">${t("revenue_24h")}</div><div class="value">${rev24h != null ? formatMoney(rev24h) : "—"}</div></div>
             </div>
             <div class="badges">${narratives.map((n) => `<span class="badge">${n}</span>`).join("")}</div>
             <div class="actions">
@@ -1661,7 +1660,7 @@ async function renderPage() {
       const chg = priceChg.change24h;
       vEl.textContent = pctStr(chg);
       vEl.classList.toggle("pos", chg > 0);
-     vEl.classList.toggle("neg", chg < 0);
+      vEl.classList.toggle("neg", chg < 0);
     }
   });
 
@@ -1763,7 +1762,7 @@ $("#feed").addEventListener("scroll", maybeLoadMore);
   sheet.addEventListener('touchend', () => {
     if (!dragging) return;
     const totalDy = Math.max(0, lastY - startY);
-    const dt = Math.max(1, performance.now() - startTime);
+    const dt = Math.max(1, performance.now() - startTime); // <--- DIPERBAIKI
     const velocity = totalDy / dt;
 
     const shouldClose = totalDy > THRESHOLD || velocity > VELOCITY_CLOSE;
@@ -1784,7 +1783,7 @@ $("#feed").addEventListener("scroll", maybeLoadMore);
           sheet.style.transition = '';
           resetTransform();
           sheet.classList.remove('dragging');
-       }, 160);
+        }, 160);
       }
     });
 
@@ -1847,7 +1846,3 @@ async function init(force) {
 }
 
 init();
-
-
-
-
