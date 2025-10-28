@@ -1094,7 +1094,7 @@ async function openSheet(p) {
           </div>
 
           <div style="margin-top:6px;">
-            <div class="label muted" style="margin-bottom:6px;">TVL 30D (${state.pref.ccy})</div>
+            <div id="tvlChartContainer" class="label muted" style="margin-bottom:6px;">TVL 30D (${state.pref.ccy})</div>
             <canvas id="tvlChart" style="width:100%;height:120px;display:block;"></canvas>
           </div>
 
@@ -1787,6 +1787,23 @@ $("#feed").addEventListener("scroll", maybeLoadMore);
   }
 
   sheet.addEventListener('touchstart', (e) => {
+    if (!sheet.classList.contains('open')) return;
+    if (!e.touches || !e.touches.length) return;
+
+    // === TAMBAHKAN BLOK INI ===
+    const chartContainer = sheet.querySelector('#tvlChartContainer');
+    if (chartContainer && chartContainer.contains(e.target)) {
+      // Sentuhan dimulai di area grafik, abaikan geser-untuk-menutup
+      return;
+    }
+    // === AKHIR BLOK TAMBAHAN ===
+
+    startY = lastY = e.touches[0].clientY;
+    startTime = performance.now();
+    dragging = false;
+  }, { passive: true });
+
+  sheet.addEventListener('touchstart', (e) => {
     if (!sheet.classList.contains('open')) return;
     if (!e.touches || !e.touches.length) return;
     startY = lastY = e.touches[0].clientY;
@@ -1904,5 +1921,6 @@ async function init(force) {
 }
 
 init();
+
 
 
