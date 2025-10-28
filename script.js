@@ -726,8 +726,212 @@ function toggleWatch(btn, p) {
   btn.classList.toggle("active");
 }
 
+
+// =================== CHART INTERACTIVE STATE & HELPERS ===================
+
+// Variabel untuk menyimpan status grafik yang sedang aktif di detail sheet
+let activeChart = {
+  canvas: null,
+  ctx: null,
+  points: [], // Data mentah [timestamp, usd]
+  coords: [], // Data terpetakan [x, y] di canvas
+  scale: {
+    pad: 8,
+    W: 0,
+    H: 0,
+    min: 0,
+    max: 0,
+    xScale: (i) => i, // Fungsi untuk memetakan index -> x
+    yScale: (v) => v, // Fungsi untuk memetakan value -> y
+  },
+  activeIdx: -1, // Index data poin yang sedang aktif/di-hover
+};
+
+/**
+ * Memformat tanggal untuk tooltip grafik.
+ * @param {number} ts - Timestamp (ms)
+ */
+function formatChartDate(ts) {
+  return new Date(ts).toLocaleDateString(state.pref.lang === "id" ? "id-ID" : "en-US", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+/**
+ * Menggambar ulang KESELURUHAN isi canvas, termasuk garis dan tooltip interaktif.
+ */
+function redrawActiveChart() {
+  const { canvas, ctx, points, coords, scale, activeIdx } = activeChart;
+  if (!ctx || !canvas || !coords.length) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  // Bersihkan canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Setel ulang skala DPR setiap kali menggambar ulang
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // 1. Gambar Garis dan Area (copy dari drawLineChart lama)
+  ctx.beginPath();
+  ctx.moveTo(coords[0][0], coords[0][1]);
+  for (let i = 1; i < coords.length; i++) {
+    ctx.lineTo(coords[i][0], coords[i][1]);
+  }
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "#1fdc86";
+  ctx.stroke();
+
+  const g = ctx.createLinearGradient(0, scale.pad, 0, scale.pad + scale.H);
+  g.addColorStop(0, "rgba(31,220,134,.32)");
+  g.addColorStop(1, "rgba(31,220,134,0)");
+  ctx.lineTo(scale.pad + scale.W, scale.pad + scale.H);
+  ctx.lineTo(scale.pad, scale.pad + scale.H);
+  ctx.closePath();
+  ctx.fillStyle = g;
+  ctx.fill();
+
+  // 2. Gambar Elemen Interaktif (Tooltip, Garis Vertikal, Titik)
+  if (activeIdx >= 0 && activeIdx < coords.length) {
+    const [x, y] = coords[activeIdx];
+    const [ts, usd] = points[activeIdx]; // Ambil data mentah
+
+    // Garis Vertikal
+    ctx.beginPath();
+    ctx.moveTo(x, scale.pad);
+    ctx.lineTo(x, scale.pad + scale.H);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+    ctx.stroke();
+
+    // Titik/Circle
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, 2 * Math.PI);
+    ctx.fillStyle = "#1fdc86";
+    ctx.strokeStyle = "#0b0f14"; // Warna background sheet, untuk border
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fill();
+
+    // Tooltip (Teks dan Latar Belakang)
+    const dateStr = formatChartDate(ts);
+    const valStr = formatMoney(usd); // Gunakan formatMoney yang ada
+    const text = `${dateStr}: ${valStr}`;
+
+    ctx.font = "bold 12px sans-serif";
+    const textMetrics = ctx.measureText(text);
+    const textW = textMetrics.width;
+    const textH = 14; // Perkiraan tinggi font
+    const boxPad = 8; // Padding di dalam kotak tooltip
+
+    // Tentukan posisi X kotak tooltip, usahakan tidak keluar layar
+    let boxX = x + 12; // Default di kanan titik
+    if (boxX + textW + boxPad * 2 > scale.pad + scale.W - 5) {
+      boxX = x - textW - boxPad * 2 - 12; // Pindah ke kiri titik
+    }
+    
+    // Tentukan posisi Y, usahakan di tengah titik
+    let boxY = y - (textH / 2) - boxPad;
+    // Jaga agar tidak keluar dari atas/bawah canvas
+    if (boxY < scale.pad) boxY = scale.pad;
+    if (boxY + textH + boxPad * 2 > scale.pad + scale.H) {
+      boxY = scale.pad + scale.H - textH - boxPad * 2;
+    }
+
+    // Gambar latar tooltip
+    ctx.fillStyle = "rgba(11, 15, 20, 0.85)"; // Latar semi-transparan
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, textW + boxPad * 2, textH + boxPad * 2, 6);
+    ctx.fill();
+    ctx.stroke();
+
+
+    // Gambar teks tooltip
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(text, boxX + boxPad, boxY + boxPad + textH - 2); // Sesuaikan Y untuk baseline teks
+  }
+}
+
+/**
+ * Mendapatkan koordinat x/y dari event mouse/touch relatif terhadap canvas.
+ */
+function getEventCoords(e) {
+  const canvas = activeChart.canvas;
+  if (!canvas) return null;
+  const rect = canvas.getBoundingClientRect();
+
+  let clientX;
+  if (e.touches && e.touches.length > 0) {
+    clientX = e.touches[0].clientX;
+  } else if (e.clientX != null) {
+    clientX = e.clientX;
+  } else {
+    return null; // Tidak ada info koordinat
+  }
+  
+  const x = clientX - rect.left;
+  return { x };
+}
+
+/**
+ * Mencari index data poin terdekat berdasarkan koordinat x.
+ */
+function findClosestPoint(x) {
+  const { coords } = activeChart;
+  if (!coords || !coords.length) return -1;
+
+  let closestIdx = -1;
+  let minDiff = Infinity;
+
+  // Cari jarak horizontal terdekat
+  for (let i = 0; i < coords.length; i++) {
+    const diff = Math.abs(coords[i][0] - x);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closestIdx = i;
+    }
+  }
+  return closestIdx;
+}
+
+/**
+ * Handler untuk event mousemove dan touchmove di canvas.
+ */
+function handleChartMove(e) {
+  if (e.cancelable) e.preventDefault(); // Mencegah scroll halaman saat drag di chart
+  const { canvas, coords } = activeChart;
+  if (!canvas || !coords.length) return;
+
+  const pos = getEventCoords(e);
+  if (pos === null) return;
+
+  const newIdx = findClosestPoint(pos.x);
+
+  if (newIdx !== activeChart.activeIdx) {
+    activeChart.activeIdx = newIdx;
+    redrawActiveChart(); // Gambar ulang dengan tooltip di posisi baru
+  }
+}
+
+/**
+ * Handler untuk event mouseleave dan touchend (saat user melepas jari).
+ */
+function handleChartLeave(e) {
+  if (activeChart.activeIdx !== -1) {
+    activeChart.activeIdx = -1; // Sembunyikan tooltip
+    redrawActiveChart();
+  }
+}
+// =================== END CHART INTERACTIVE HELPERS ===================
+
 function drawLineChart(canvas, points) {
-  if (!canvas || !points || points.length < 2) return;
+  // Reset state jika chart tidak valid
+  if (!canvas || !points || points.length < 2) {
+    activeChart = { canvas: null, ctx: null, points: [], coords: [], scale: {}, activeIdx: -1 };
+    return;
+  }
+
   const ctx = canvas.getContext("2d");
   const dpr = window.devicePixelRatio || 1;
   const cssW = canvas.clientWidth || canvas.parentElement.clientWidth || 300;
@@ -735,30 +939,51 @@ function drawLineChart(canvas, points) {
   canvas.width = cssW * dpr;
   canvas.height = cssH * dpr;
   ctx.scale(dpr, dpr);
+
   const valuesUSD = points.map((p) => p?.[1]).filter((v) => isFinite(v));
-  const vals = state.pref.ccy === "IDR" && state.fx.rate ? valuesUSD.map((v) => v * state.fx.rate) : valuesUSD;
-  if (!vals.length) return;
-  const min = Math.min(...vals),
-    max = Math.max(...vals);
+  // Poin data mentah (points) disimpan apa adanya [ts, usd]
+  // scaleVals digunakan untuk menentukan min/max dalam mata uang pilihan
+  const scaleVals = state.pref.ccy === "IDR" && state.fx.rate ? valuesUSD.map((v) => v * state.fx.rate) : valuesUSD;
+  
+  if (!scaleVals.length) return;
+
+  const min = Math.min(...scaleVals),
+    max = Math.max(...scaleVals);
   const pad = 8,
     W = cssW - pad * 2,
     H = cssH - pad * 2;
-  const x = (i) => pad + (i / (vals.length - 1)) * W;
-  const y = (v) => pad + (1 - (v - min) / (max - min || 1)) * H;
-  ctx.beginPath();
-  ctx.moveTo(x(0), y(vals[0]));
-  for (let i = 1; i < vals.length; i++) ctx.lineTo(x(i), y(vals[i]));
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = "#1fdc86";
-  ctx.stroke();
-  const g = ctx.createLinearGradient(0, pad, 0, pad + H);
-  g.addColorStop(0, "rgba(31,220,134,.32)");
-  g.addColorStop(1, "rgba(31,220,134,0)");
-  ctx.lineTo(pad + W, pad + H);
-  ctx.lineTo(pad, pad + H);
-  ctx.closePath();
-  ctx.fillStyle = g;
-  ctx.fill();
+
+  // Fungsi skala
+  const xScale = (i) => pad + (i / (scaleVals.length - 1)) * W;
+  const yScale = (v) => pad + (1 - (v - min) / (max - min || 1)) * H;
+
+  // Simpan semua state ke variabel global activeChart
+  activeChart.canvas = canvas;
+  activeChart.ctx = ctx;
+  activeChart.points = points; // Simpan data mentah [ts, usd]
+  activeChart.coords = scaleVals.map((v, i) => [xScale(i), yScale(v)]);
+  activeChart.scale = { pad, W, H, min, max, xScale, yScale };
+  activeChart.activeIdx = -1;
+
+  // Gambar Awal
+  redrawActiveChart();
+
+  // Hapus listener lama jika ada (untuk mencegah duplikat)
+  if (canvas._chartListenersAttached) {
+    canvas.removeEventListener("mousemove", handleChartMove);
+    canvas.removeEventListener("mouseleave", handleChartLeave);
+    canvas.removeEventListener("touchmove", handleChartMove);
+    canvas.removeEventListener("touchend", handleChartLeave);
+    canvas.removeEventListener("touchcancel", handleChartLeave);
+  }
+
+  // Pasang listener baru
+  canvas.addEventListener("mousemove", handleChartMove);
+  canvas.addEventListener("mouseleave", handleChartLeave);
+  canvas.addEventListener("touchmove", handleChartMove, { passive: false }); // 'passive: false' untuk e.preventDefault()
+  canvas.addEventListener("touchend", handleChartLeave);
+  canvas.addEventListener("touchcancel", handleChartLeave);
+  canvas._chartListenersAttached = true; // Tandai bahwa listener sudah dipasang
 }
 
 function getGeckoIdFromTokenKeys(slug) {
@@ -1679,3 +1904,4 @@ async function init(force) {
 }
 
 init();
+
