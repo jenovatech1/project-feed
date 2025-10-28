@@ -1140,7 +1140,7 @@ async function openSheet(p) {
       newCanvas.style.height = "120px";
 
       if (Array.isArray(last30) && last30.length) {
-        const pts = last30.map((r) => [r.date, r.totalLiquidityUSD]);
+        const pts = last30.map((r) => [r.date * 1000, r.totalLiquidityUSD]);
         shimmer.replaceWith(newCanvas);
         drawLineChart(newCanvas, pts);
       } else {
@@ -1159,7 +1159,7 @@ async function openSheet(p) {
           btn.textContent = t("loading");
           const again = await retryLoadTvl(p.slug, 3);
           if (again && again.length) {
-            const pts2 = again.map((r) => [r.date, r.totalLiquidityUSD]);
+            const pts2 = again.map((r) => [r.date * 1000, r.totalLiquidityUSD]);
             box.replaceWith(newCanvas);
             drawLineChart(newCanvas, pts2);
           } else {
@@ -1904,4 +1904,5 @@ async function init(force) {
 }
 
 init();
+
 
